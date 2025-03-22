@@ -46,7 +46,35 @@ function handleClick(e){
 }
 function submitVote(e){
     e.preventDefault()
-    console.log(e.target.votes.value)
+    const formdata = new FormData(e.target)
+    if (Number(e.target.votes.value) && Number(e.target.votes.value) > 0){
+        let p = detailedInfo.firstElementChild
+        characterList.forEach(character => {
+            if (p.textContent === character.name){
+                patchVotes(formdata, character.id)
+            }
+        })   
+    }
+    else{
+        alert("Kindly Input a positive number")
+    }
+    e.target.reset()
+}
+function patchVotes(voteValue, id){
+    const voteData = {
+        votes: voteValue.get("votes")
+    }
+    fetch(`http://localhost:3000/characters/${id}`, {
+        method: "PATCH",
+        headers:{
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(voteData)
+    }).then(res => res.json())
+    .then(data => {
+        const p = detailedInfo.firstElementChild
+        p.textContent = data.votes
+    })
 }
 
 function main(){
