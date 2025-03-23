@@ -2,84 +2,120 @@
 const characterBar = document.querySelector("div#character-bar")
 const detailedInfo = document.querySelector("div#detailed-info")
 const vote = document.querySelector("form#votes-form")
-let characterList = [];
+const reset = document.querySelector("#reset-btn")
+let characterList;
 
 function getCharacters(){
-    fetch("http://localhost:3000/characters")
+    return fetch("http://localhost:3000/characters")
     .then(res=> res.json())
-    .then(characters=> {
+    .then(characters => {
+        displayCharacters(characters)
         characterList = characters
-        displayCharacter(characters)
-        const span = document.querySelectorAll("div#character-bar span")
-        addClickListener(span)
-        vote.addEventListener("submit",submitVote)
     })
 }
+// First user story 
+function displayCharacters(characterList){
+    characterList.forEach(character => {
 
-function displayCharacter(characters){
-    characters.forEach(character => {
         characterBar.innerHTML += `
-            <span>${character.name}</span>
+            <span id="${character.id}">${character.name}</span>
         `
-
     });
-
+    // Second user story
+    listenForClicks()
 }
-function addClickListener(spanList){
-    spanList.forEach(span=>{
-        span.addEventListener("click", handleClick)
+
+function listenForClicks(){
+    const span = characterBar.querySelectorAll("span")
+    // console.log(span)
+    span.forEach((node)=>{
+        node.addEventListener("click", handleClick)
     })
 }
 
 function handleClick(e){
-    const p = detailedInfo.firstElementChild
-    const img = p.nextElementSibling
-    const votes = img.nextElementSibling.firstElementChild
-    characterList.forEach((character)=>{
-        if (character.name == e.target.textContent){
-            p.textContent = character.name
-            img.src = character.image
-            img.alt = character.name
-            votes.textContent = character.votes
-        }
-    })
+    fetch(`http://localhost:3000/characters/${e.target.id}`)
+    .then(res=> res.json())
+    .then(data =>{
+        const p = detailedInfo.firstElementChild
+        const img = p.nextElementSibling
+        const vote = img.nextElementSibling.firstElementChild
+        p.textContent = data.name
+        img.src = data.image
+        vote.textContent = data.votes
+    })   
 }
-function submitVote(e){
+
+document.querySelector("form#votes-form").addEventListener("submit", addVotes)
+
+function addVotes(e){
     e.preventDefault()
-    const formdata = new FormData(e.target)
+    
     if (Number(e.target.votes.value) && Number(e.target.votes.value) > 0){
-        let p = detailedInfo.firstElementChild
-        characterList.forEach(character => {
-            if (p.textContent === character.name){
-                patchVotes(formdata, character.id)
+        const formdata = new FormData(e.target)
+        let character = detailedInfo.firstElementChild.textContent
+        characterList.forEach( char =>{
+            getCharacterData(char.id)
+            console.log(char.votes)
+            if(char.name === character){
+                postVote(formdata, char, char.votes)
             }
-        })   
+        })
     }
     else{
-        alert("Kindly Input a positive number")
+        alert("Kindly input a positive integer or number greater than 0")
     }
     e.target.reset()
 }
-function patchVotes(voteValue, id){
-    const voteData = {
-        votes: voteValue.get("votes")
+
+function postVote(vote, char, votes){
+    let voteData = {
+        votes : Number(vote.get("votes")) + Number(votes)
     }
-    fetch(`http://localhost:3000/characters/${id}`, {
+    
+    fetch(`http://localhost:3000/characters/${char.id}`, {
         method: "PATCH",
-        headers:{
-            "Content-Type": "application/json"
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         },
         body: JSON.stringify(voteData)
-    }).then(res => res.json())
+    })
+    .then(res=> res.json())
     .then(data => {
-        const p = detailedInfo.firstElementChild
-        p.textContent = data.votes
+        let voteElement = detailedInfo.querySelector("#vote-count")
+        voteElement.textContent = data.votes        
     })
 }
 
-function main(){
-    getCharacters()
-    
+function getCharacterData(){
+    return fetch(`http://localhost:3000/characters`)
+        .then(res=>res.json())
+        .then(data=>characterList = data)
 }
 
-main()
+reset.addEventListener("click", handleReset)
+
+function handleReset(e){
+    characterList.forEach(character=>{
+        character.votes = 0;
+        fetch(`http://localhost:3000/characters/${character.id}`,{
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(character)
+        })
+        .then(res=> res.json())
+        .then(data=> {
+            const p = detailedInfo.firstElementChild
+            const img = p.nextElementSibling
+            const vote = img.nextElementSibling.firstElementChild
+            p.textContent = data.name
+            img.src = data.image
+            vote.textContent = data.votes
+        })
+    })
+}
+
+getCharacters()
